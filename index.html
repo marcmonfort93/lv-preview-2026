@@ -1640,30 +1640,47 @@ document.addEventListener('keydown', e=>{
 
 /* ============ mega menu ============ */
 const canHover = () => window.matchMedia('(hover:hover) and (pointer:fine)').matches && window.innerWidth > 920;
-function closeMenus(){ $$('.nav-item').forEach(x=>{ x.classList.remove('open'); const b=$('button',x); if(b) b.setAttribute('aria-expanded','false'); }); }
-function openMenu(it){ closeMenus(); it.classList.add('open'); const b=$('button',it); if(b) b.setAttribute('aria-expanded','true'); }
+const HDR = document.querySelector('header.site');
+let openT = null, closeT = null, holdShut = false;
+function closeMenus(){
+  $$('.nav-item').forEach(x=>{ x.classList.remove('open'); const b=$('button',x); if(b) b.setAttribute('aria-expanded','false'); });
+}
+function openMenu(it){
+  closeMenus();
+  it.classList.add('open');
+  const b=$('button',it); if(b) b.setAttribute('aria-expanded','true');
+}
+/* El panel cuelga del propio .nav-item, pero al bajar en diagonal hacia él el
+   puntero cruza por encima del botón vecino. Por eso NO se cierra al salir de
+   un .nav-item: se cierra al salir de toda la cabecera, y para cambiar de menú
+   hay que posarse sobre otro botón, no pasar rozando. */
 $$('.nav-item[data-menu]').forEach(it=>{
-  const btn = $('button',it);
+  const btn = $('button', it);
   btn.onclick = e => {
     e.stopPropagation();
+    clearTimeout(openT); clearTimeout(closeT);
+    holdShut = false;
     it.classList.contains('open') ? closeMenus() : openMenu(it);
   };
-  /* Abrir sólo si el puntero se queda: pasar por encima de camino a otro sitio
-     no debe desplegar nada. Y cerrar con margen, para poder bajar al panel. */
-  let openT, leaveT;
-  it.addEventListener('mouseenter', ()=>{
-    if(!canHover()) return;
-    clearTimeout(leaveT); clearTimeout(openT);
-    const anyOpen = $$('.nav-item.open').length > 0;
-    openT = setTimeout(()=>openMenu(it), anyOpen ? 40 : 220);
+  btn.addEventListener('mouseenter', ()=>{
+    if(!canHover() || holdShut) return;
+    clearTimeout(closeT); clearTimeout(openT);
+    if(it.classList.contains('open')) return;
+    openT = setTimeout(()=>openMenu(it), 180);
   });
-  it.addEventListener('mouseleave', ()=>{
-    if(!canHover()) return;
-    clearTimeout(openT);
-    leaveT = setTimeout(closeMenus, 320);
-  });
+  btn.addEventListener('mouseleave', ()=>{ clearTimeout(openT); });
   it.addEventListener('focusout', e => { if(!it.contains(e.relatedTarget)) closeMenus(); });
-  $$('a', it).forEach(a=>a.addEventListener('click', closeMenus));
+  it.addEventListener('click', e => {
+    if(!e.target.closest('a')) return;
+    clearTimeout(openT); holdShut = true; closeMenus();
+  });
+});
+HDR.addEventListener('mouseenter', ()=>{ clearTimeout(closeT); });
+HDR.addEventListener('mouseleave', ()=>{
+  holdShut = false;
+  if(!canHover()) return;
+  clearTimeout(openT);
+  closeT = setTimeout(closeMenus, 220);
 });
 $('#burger').onclick = ()=> $('#mnav').classList.add('open');
 $('#mnavx').onclick = ()=> $('#mnav').classList.remove('open');
